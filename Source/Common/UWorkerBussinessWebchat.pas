@@ -48,6 +48,9 @@ type
     //传入报文解包
     function VerifyPrintCode(var nData: string): Boolean;
     //验证喷码信息
+
+    function GetWaitingForloading(var nData:string):Boolean;
+    //工厂待装查询
   public
     class function FunctionName: string; override;
     function GetFlagStr(const nFlag: Integer): string; override;
@@ -114,7 +117,8 @@ begin
   FPacker.XMLBuilder.Clear;
   FPacker.XMLBuilder.ReadFromString(nData);
 
-  nNode := FPacker.XMLBuilder.Root.FindNode('Head');
+  //nNode := FPacker.XMLBuilder.Root.FindNode('Head');
+  nNode := FPacker.XMLBuilder.Root;
   if not (Assigned(nNode) and Assigned(nNode.FindNode('Command'))) then
   begin
     nData := '无效参数节点(Head.Command Null).';
@@ -129,6 +133,8 @@ begin
 
   nTmp := nNode.FindNode('Command');
   FIn.FCommand := StrToIntDef(nTmp.ValueAsString, 0);
+
+  nTmp := nNode.FindNode('RemoteUL');
   FIn.FRemoteUL:= nTmp.ValueAsString;
 
   nTmp := nNode.FindNode('Data');
@@ -158,6 +164,7 @@ begin
 
   case FIn.FCommand of
    cBC_VerifPrintCode         : Result := VerifyPrintCode(nData);
+   cBC_WaitingForloading      : Result := GetWaitingForloading(nData);
    else
     begin
       Result := False;
@@ -173,7 +180,10 @@ begin
   end;
 end;
 
-
+//------------------------------------------------------------------------------
+//Date: 2016-9-20
+//Parm: 防伪码
+//Desc: 防伪码查询
 function TBusWorkerBusinessWebchat.VerifyPrintCode(var nData: string): Boolean;
 var nOut: TWorkerBusinessCommand;
     nItems: TLadingBillItems;
@@ -230,6 +240,58 @@ begin
   nData := FPacker.XMLBuilder.WriteToString;
 end;  
 
+//------------------------------------------------------------------------------
+//Date: 2016-9-20
+//Parm: 无用
+//Desc: 工厂待装查询
+function TBusWorkerBusinessWebchat.GetWaitingForloading(var nData:string):Boolean;
+var nOut: TWorkerBusinessCommand;
+    nItems: TQueueListItems;
+    nIdx: Integer;
+begin
+  Result := CallRemoteWorker(sCLI_BusinessCommand, FIn.FData, FIn.FExtParam,
+            @nOut, cBC_WaitingForloading, FIn.FRemoteUL);
+  //xxxxxx
+
+  BuildDefaultXMLPack;
+  if Result then
+  begin
+    with FPacker.XMLBuilder do
+    begin
+      with Root.NodeNew('Items') do
+      begin
+        AnalyseQueueListItems(nOut.FData, nItems);
+
+        for nIdx := Low(nItems) to High(nItems) do
+        with NodeNew('Item'), nItems[nIdx] do
+        begin
+          NodeNew('StockName').ValueAsString := FStockName;
+          NodeNew('LineCount').ValueAsString := IntToStr(FLineCount);
+          NodeNew('TruckCount').ValueAsString := IntToStr(FTruckCount);
+        end;  
+      end;
+
+      with Root.NodeNew('EXMG') do
+      begin
+        NodeNew('MsgTxt').ValueAsString     := '业务执行成功';
+        NodeNew('MsgResult').ValueAsString  := sFlag_Yes;
+        NodeNew('MsgCommand').ValueAsString := IntToStr(FIn.FCommand);
+      end;
+    end;
+  end
+  else begin
+    with FPacker.XMLBuilder do
+    begin
+      with Root.NodeNew('EXMG') do
+      begin
+        NodeNew('MsgTxt').ValueAsString     := nOut.FData;
+        NodeNew('MsgResult').ValueAsString  := sFlag_No;
+        NodeNew('MsgCommand').ValueAsString := IntToStr(FIn.FCommand);
+      end;
+    end;
+  end;  
+  nData := FPacker.XMLBuilder.WriteToString;
+end;
 
 
 //------------------------------------------------------------------------------

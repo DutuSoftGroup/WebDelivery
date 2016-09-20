@@ -294,4 +294,5 @@ end;
 initialization
   gBusinessPackerManager.RegistePacker(TMITQueryField, sPlug_ModuleBus);
   gBusinessPackerManager.RegistePacker(TMITBusinessCommand, sPlug_ModuleBus);
+  gBusinessPackerManager.RegistePacker(TMITQueryWebChat, sPlug_ModuleRemote);
 end.

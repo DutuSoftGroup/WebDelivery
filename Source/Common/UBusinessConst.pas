@@ -25,7 +25,8 @@ const
   cBC_ServerNow               = $0002;   //服务器当前时间
   cBC_IsSystemExpired         = $0003;   //系统是否已过期
 
-  cBC_VerifPrintCode          = $0010;   //验证喷码信息
+  cBC_VerifPrintCode          = $0087;   //验证喷码信息
+  cBC_WaitingForloading       = $0088;   //工厂待装查询
 
 type
   PWorkerWebChatData = ^TWorkerWebChatData;
@@ -97,10 +98,23 @@ type
   TLadingBillItems = array of TLadingBillItem;
   //交货单列表
 
+  TQueueListItem = record
+    FStockNO   : string;
+    FStockName : string;
+
+    FLineCount : Integer;
+    FTruckCount: Integer;
+  end;
+  TQueueListItems = array of TQueueListItem;
+  //待装排队列表
+
 procedure AnalyseBillItems(const nData: string; var nItems: TLadingBillItems);
 //解析由业务对象返回的交货单数据
 function CombineBillItmes(const nItems: TLadingBillItems): string;
 //合并交货单数据为业务对象能处理的字符串
+
+procedure AnalyseQueueListItems(const nData: string; var nItems: TQueueListItems);
+//解析由业务对象返回的待装排队数据
 
 resourcestring
   {*PBWDataBase.FParam*}
@@ -314,6 +328,41 @@ begin
     nListB.Free;
     nListA.Free;
   end;
+end;
+
+//Date: 2016-09-20
+//Parm: 待装队列数据;解析结果
+//Desc: 解析nData为结构化列表数据
+procedure AnalyseQueueListItems(const nData: string; var nItems: TQueueListItems);
+var nStr: string;
+    nIdx,nInt: Integer;
+    nListA,nListB: TStrings;
+begin
+  nListA := TStringList.Create;
+  nListB := TStringList.Create;
+  try
+    nListA.Text := PackerDecodeStr(nData);
+    //bill list
+    nInt := 0;
+    SetLength(nItems, nListA.Count);
+
+    for nIdx:=0 to nListA.Count - 1 do
+    begin
+      nListB.Text := PackerDecodeStr(nListA[nIdx]);
+      //bill item
+
+      with nListB,nItems[nInt] do
+      begin
+        FStockName := Values['StockName'];
+        FLineCount := StrToIntDef(Values['LineCount'],0);
+        FTruckCount := StrToIntDef(Values['TruckCount'],0);
+      end;
+      Inc(nInt);
+    end;
+  finally
+    nListB.Free;
+    nListA.Free;
+  end;   
 end;
 
 end.

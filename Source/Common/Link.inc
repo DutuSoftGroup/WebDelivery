@@ -13,7 +13,7 @@
   //启用中间件互访
   {.$DEFINE DBPool}
   //启用数据库支持
-  {.$DEFINE ChannelPool}
+  {$DEFINE ChannelPool}
   //启用通道支持
   {.$DEFINE AutoChannel}
   //启用通道平衡
